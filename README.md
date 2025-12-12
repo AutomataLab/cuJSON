@@ -27,23 +27,27 @@
 ## 📝 Table of Contents
 
 - [About](#about)
-- [Publication](#publication)
+- [Publication](#paper)
 - [Datasets](#datasets)
 - [Getting Started](#getting_started)
 - [Integrating cuJSON into Your Project](#deployment)
 - [Query Iterator](#query)
-- [Paper](#paper)
 
 ## 🧐 About <a name = "about"></a>
 
 JSON (JavaScript Object Notation) data is widely used in modern computing, yet its parsing performance can be a major bottleneck. Conventional wisdom suggests that GPUs are ill-suited for parsing due to the branch-heavy nature of parsing algorithms. This work challenges that notion by presenting cuJSON, a novel JSON parser built on a redesigned parsing algorithm, specifically tailored for GPU architectures with minimal branching and maximal parallelism.
 
 cuJSON offloads all three key phases of JSON parsing to the GPU: (i) UTF validation, (ii) JSON tokenization, and (iii) nesting structure recognition. Each phase is powered by a highly parallel algorithm optimized for GPUs, effectively leveraging intrinsic GPU functions and high-performance CUDA libraries for acceleration. 
-To maximize the parsing speed, the output of cuJSON is also specially designed in a non-conventional way. Finally, cuJSON is able to break key dependencies in the parsing process, making it possible to accelerate the parsing of a single large JSON file effectively. Evaluation shows that cuJSON not only outperforms highly optimized CPU-based parsers like simdjson and Pison but also surpasses existing GPU-based parsers like cuDF and GPJSON, in terms of both functionality and performance.
+To maximize the parsing speed, the output of cuJSON is also specially designed in a non-conventional way. Finally, cuJSON is able to break key dependencies in the parsing process, making it possible to accelerate the parsing of a single large JSON file effectively. Evaluation shows that cuJSON not only outperforms highly optimized CPU-based parsers like simdjson  and Pison but also surpasses existing GPU-based parsers like cuDF and GPJSON, in terms of both functionality and performance.
 
-## Publication <a name = "publication"></a>
-
+## ✍️ Publication - cuJSON <a name="paper"></a>
 [1] Ashkan Vedadi Gargary, Soroosh Safari Loaliyan, and Zhijia Zhao. 2025. <a href="https://doi.org/10.1145/3760250.3762222">CuJSON: A Highly Parallel JSON Parser for GPUs</a>. In Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 1 (ASPLOS '26). Association for Computing Machinery, New York, NY, USA, 85–100. https://doi.org/10.1145/3760250.3762222
+
+This repository contains the official source code for the cuJSON paper. All figures and benchmark results presented in the publication can be fully reproduced using the code provided here.
+
+For detailed instructions on how to replicate the experimental results and figures from the paper, <b>specially for research purposes and comparison</b>, please refer to the `paper_reproduced/` directory.
+
+Additionally, all the scripts are available at `paper_reproduced/scripts/readme.md`.
 
 
 ## 📂 Datasets <a name = "datasets"></a>
@@ -290,12 +294,7 @@ For a variety of usage examples, please refer to the files located in the `paper
 
 
 
-## ✍️ cuJSON Paper <a name="paper"></a>
-This repository contains the official source code for the cuJSON paper. All figures and benchmark results presented in the publication can be fully reproduced using the code provided here.
 
-For detailed instructions on how to replicate the experimental results and figures from the paper, <b>specially for research purposes and comparison</b>, please refer to the `paper_reproduced/` directory.
-
-Additionally, all the scripts are available at `paper_reproduced/scripts/readme.md`.
 
 
 <!-- 
