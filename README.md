@@ -27,6 +27,7 @@
 ## 📝 Table of Contents
 
 - [About](#about)
+- [Publication](#publication)
 - [Datasets](#datasets)
 - [Getting Started](#getting_started)
 - [Integrating cuJSON into Your Project](#deployment)
@@ -39,6 +40,11 @@ JSON (JavaScript Object Notation) data is widely used in modern computing, yet i
 
 cuJSON offloads all three key phases of JSON parsing to the GPU: (i) UTF validation, (ii) JSON tokenization, and (iii) nesting structure recognition. Each phase is powered by a highly parallel algorithm optimized for GPUs, effectively leveraging intrinsic GPU functions and high-performance CUDA libraries for acceleration. 
 To maximize the parsing speed, the output of cuJSON is also specially designed in a non-conventional way. Finally, cuJSON is able to break key dependencies in the parsing process, making it possible to accelerate the parsing of a single large JSON file effectively. Evaluation shows that cuJSON not only outperforms highly optimized CPU-based parsers like simdjson and Pison but also surpasses existing GPU-based parsers like cuDF and GPJSON, in terms of both functionality and performance.
+
+## Publication <a name = "publication"></a>
+
+[1] Ashkan Vedadi Gargary, Soroosh Safari Loaliyan, and Zhijia Zhao. 2025. <a href="https://doi.org/10.1145/3760250.3762222">CuJSON: A Highly Parallel JSON Parser for GPUs</a>. In Proceedings of the 31st ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 1 (ASPLOS '26). Association for Computing Machinery, New York, NY, USA, 85–100. https://doi.org/10.1145/3760250.3762222
+
 
 ## 📂 Datasets <a name = "datasets"></a>
 Two sample datasets are included in the `dataset` folder. Large datasets (used in performance evaluation) can be downloaded from https://drive.google.com/drive/folders/1PkDEy0zWOkVREfL7VuINI-m9wJe45P2Q?usp=sharing and placed into the `dataset` folder. Each dataset comes with two formats:
