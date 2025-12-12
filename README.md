@@ -1,6 +1,6 @@
 <p align="center">
   <a href="" rel="noopener">
-    <img width="200px" height="200px" src="fig/logo-2.jpeg" alt="cuJSON Project Logo">
+    <img width="200px" height="200px" src="fig/logo-2.png" alt="cuJSON Project Logo">
     <!-- <img width="200px" height="200px" src="fig/logo.jpeg" style="border-radius: 50%; border: 4px solid #2C3E50;" alt="cuJSON Project Logo"> -->
 </p>
 
