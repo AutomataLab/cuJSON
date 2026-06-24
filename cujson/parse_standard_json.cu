@@ -1319,9 +1319,22 @@ inline uint8_t * Tokenize(  uint8_t* block_GPU,
 
     uint8_t* out_string_open_close_8_GPU;
     uint32_t* out_string_open_close_8_index_GPU; // it's going to store structural index, not real index
-    cudaMallocAsync(&out_string_open_close_8_GPU, (last_index_tokens_open_close + padding2)  * sizeof(uint8_t),0);
-    cudaMallocAsync(&out_string_open_close_8_index_GPU, last_index_tokens_open_close * sizeof(uint32_t),0);
+    // Fixed: Initialize it to 0 before using it in the kernel to avoid undefined behavior.
+    cudaMallocAsync(&out_string_open_close_8_GPU,
+                    (last_index_tokens_open_close + padding2) * sizeof(uint8_t),
+                    0);
+    cudaMemsetAsync(out_string_open_close_8_GPU,
+                    0,
+                    (last_index_tokens_open_close + padding2) * sizeof(uint8_t),
+                    0);
 
+    cudaMallocAsync(&out_string_open_close_8_index_GPU,
+                    last_index_tokens_open_close * sizeof(uint32_t),
+                    0);
+    cudaMemsetAsync(out_string_open_close_8_index_GPU,
+                    0,
+                    last_index_tokens_open_close * sizeof(uint32_t),
+                    0);
     // cout << "res size before remove copy: " << last_index_tokens_open_close << "\n";
 
     // cudaEventRecord(start, 0);
@@ -1575,7 +1588,9 @@ int32_t* Parser(uint8_t* open_close_GPU, int32_t** open_close_index_d,  int32_t*
     int32_t* res; // temporary result that will use in following
 
     uint32_t* oc_1; // output 
-    cudaMallocAsync(&oc_1, oc_cnt_32*sizeof(uint32_t), 0); 
+    // Fixed: Allocate memory for oc_1 on the device and initialize it to zero.
+    cudaMallocAsync(&oc_1, oc_cnt_32 * sizeof(uint32_t), 0);
+    cudaMemsetAsync(oc_1, 0, oc_cnt_32 * sizeof(uint32_t), 0);
 
     depth_init_MathAPI<<<numBlock_open_close_32, BLOCKSIZE>>>( (uint32_t*) open_close_GPU, oc_1, oc_cnt_32, oc_cnt);
     cudaStreamSynchronize(0);
