@@ -6,6 +6,6 @@
 
 // Function prototype for standard_parse
 // cuJSONResult standard_json_parse(uint8_t* h_jsonContent);
-cuJSONResult parse_json_lines(cuJSONInput input);
+cuJSONResult parse_json_lines(cuJSONLinesInput input);
 
 #endif // STANDARD_PARSE_H

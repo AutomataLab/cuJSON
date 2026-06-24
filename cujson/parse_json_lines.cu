@@ -1145,13 +1145,29 @@ cuJSONResult parse_json_lines(cuJSONLinesInput input) {
     int total_result_size = 0;          // latest index structural
     int latest_index_realJSON = 0;      // latest index realJSON
 
-    // Check if the input is valid
-    if (input.data == nullptr || input.size == 0) {
-        std::cerr << "\033[1;31m Error: Invalid JSON content or input.size. \033[0m\n";
-        return cuJSONResult{};  // Return empty result
+    // Check top-level input before any pointer arithmetic or dereference.
+    if (input.size == 0) {
+        std::cerr << "\033[1;31m Error: input.size cannot be zero. \033[0m\n";
+        return cuJSONResult{};
     }
 
-                                         // fileSize
+    if (input.data == nullptr) {
+        std::cerr << "\033[1;31m Error: input.data is NULL with non-zero input.size. \033[0m\n";
+        return cuJSONResult{};
+    }
+
+    if (input.chunkCount == 0) {
+        std::cerr << "\033[1;31m Error: input.chunkCount cannot be zero. \033[0m\n";
+        return cuJSONResult{};
+    }
+
+    if (input.chunks.size() < input.chunkCount || input.chunksSize.size() < input.chunkCount) {
+        std::cerr << "\033[1;31m Error: input chunk metadata is smaller than input.chunkCount. \033[0m\n";
+        return cuJSONResult{};
+    }
+
+
+    // fileSize
     size_t lastChunkIndex = 0;
     size_t lastStructuralIndex = 0;
     size_t chunks_count = 1;
@@ -1164,15 +1180,21 @@ cuJSONResult parse_json_lines(cuJSONLinesInput input) {
 
     for (size_t i = 0; i < input.chunkCount; i++){
         size_t currentChunkSize = input.chunksSize[i];
-        // cout << "i: " << i << endl;
-        // cout << "currentChunkSize: " << currentChunkSize << endl;
+        uint8_t* currentChunk = input.chunks[i];
+
         if (currentChunkSize == 0) {
             std::cerr << "\033[1;31m Error: Invalid chunk size at index " << i << ". Chunk size cannot be zero. \033[0m\n";
-            return cuJSONResult{};  // Return empty result
+            return cuJSONResult{};
         }
+
         if (currentChunkSize > input.size) {
             std::cerr << "\033[1;31m Error: Chunk size at index " << i << " exceeds total input size. \033[0m\n";
-            return cuJSONResult{};  // Return empty result
+            return cuJSONResult{};
+        }
+
+        if (currentChunk == nullptr) {
+            std::cerr << "\033[1;31m Error: input.chunks[" << i << "] is NULL with non-zero chunk size. \033[0m\n";
+            return cuJSONResult{};
         }
 
         // init - Calculate padding to align the buffer size to the nearest multiple of 4 bytes for optimal GPU performance.
@@ -1188,8 +1210,7 @@ cuJSONResult parse_json_lines(cuJSONLinesInput input) {
         uint8_t* d_jsonContent; // block_GPU
         cudaMalloc((void**)&d_jsonContent, (currentChunkSize + padding) * sizeof(uint8_t));
         cudaMemset(d_jsonContent, 0, (currentChunkSize + padding) * sizeof(uint8_t));
-        cudaMemcpy(d_jsonContent, input.chunks[i], currentChunkSize * sizeof(uint8_t), cudaMemcpyHostToDevice);
-
+        cudaMemcpy(d_jsonContent, currentChunk, currentChunkSize * sizeof(uint8_t), cudaMemcpyHostToDevice);
 
         // UTF8 Validation
         bool isValidUTF8 = stage1_UTF8Validator(reinterpret_cast<uint32_t *>(d_jsonContent), size_32);
