@@ -983,7 +983,20 @@ void map_open_close(uint32_t* open_close_bitmap, uint32_t* oc_1, int oc_cnt_32, 
 
     for(int32_t i = index; i < oc_cnt_32 && i < oc_cnt ; i+=stride){
         uint32_t idx = i*4;
+
         uint32_t current_4_bytes = open_close_bitmap[i];
+        
+        // Fixed: count valid bytes in the last iteration to avoid reading beyond the array bounds
+        int remaining = oc_cnt - idx;
+        int valid_bytes = remaining < 4 ? remaining : 4;
+
+        /*
+         * Keep only initialized logical bytes in the final partial word.
+         * valid_bytes is in [1, 4] for all active loop iterations.
+         */
+        uint32_t valid_mask = 0xFFFFFFFF >> ((4 - valid_bytes) * 8);
+        current_4_bytes &= valid_mask;
+
 
         uint32_t isOpen = (__vcmpeq4(current_4_bytes, 0x5B5B5B5B) | __vcmpeq4(current_4_bytes, 0x7B7B7B7B) ) & 0x01010101; // 01
         uint32_t isClose = (__vcmpeq4(current_4_bytes, 0x5D5D5D5D) |  __vcmpeq4(current_4_bytes, 0x7D7D7D7D) );            // FF
