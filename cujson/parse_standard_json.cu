@@ -1,6 +1,6 @@
 #include "parse_standard_json.h"         // Include the standard parse header
 #include "cujson_types.h"
-
+#include <string.h>
 
 // prev1            --> 4 character
 // result           --> source
@@ -1715,9 +1715,14 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
     // cudaMemcpy(1 + res_buf_arrays[0], result_GPU, sizeof(int32_t) * result_size, cudaMemcpyDeviceToHost); // first and last is for [ and ]
     // cudaMemcpy(1 + res_buf_arrays[0] + 1 + result_size,   result_GPU + result_size, sizeof(int32_t) * result_size, cudaMemcpyDeviceToHost); // first and last is for [ and ]
     int32_t* res_buff;
-    cudaMallocHost((void**)&res_buff, sizeof(int32_t) * (result_size + 2) * ROW2);  // Pinned memory for fast H2D copy
+    size_t res_buff_count = (size_t)(result_size + 2) * ROW2;
+    cudaMallocHost((void**)&res_buff, sizeof(int32_t) * res_buff_count);  // Pinned memory for fast H2D copy
+    memset(res_buff, 0, sizeof(int32_t) * res_buff_count);
 
     // Copy results from device to host
+    // res_buff[0] and res_buff[result_size + 1] are reserved for artificial
+    // root/sentinel entries. Device structural data starts at structural[1],
+    // and device pair_pos data starts at pair_pos[1].
     cudaMemcpy(1 + res_buff, result_GPU, sizeof(int32_t) * result_size, cudaMemcpyDeviceToHost);  // result 1
     cudaMemcpy(1 + res_buff + 1 + result_size, result_GPU + result_size, sizeof(int32_t) * result_size, cudaMemcpyDeviceToHost);  // result 2
 
@@ -1729,6 +1734,11 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
     // parsed tree struct generation
     parsed_tree.totalResultSize = total_result_size + 2;
     parsed_tree.fileSize = result_size + 2;
+    
+    // Initialize artificial root/sentinel entries now, so parsed_tree is valid
+    // immediately after parse_standard_json() returns.
+    res_buff[0] = 0;
+    res_buff[result_size + 1] = parsed_tree.totalResultSize - 1;
     
     // parsed_tree.structural = res_buf_arrays[0];
     // parsed_tree.pair_pos = res_buf_arrays[0] + total_result_size + 1;
