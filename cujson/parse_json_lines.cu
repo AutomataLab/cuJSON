@@ -1006,22 +1006,26 @@ void validate_expand(char* pair_oc, uint32_t* index_arr, uint32_t* endIdx, int o
 
         if( i == oc_cnt_32 - 1){
             if(k+1 >= oc_cnt){
-                shared_error |= 1; 
+                atomicOr(&shared_error, 1u);
+                // shared_error |= 1; 
             }else if(k+2 >= oc_cnt){
                 uint32_t two_chars = pair_oc[k] | pair_oc[k+1] << 8;
                 uint32_t shifted_two_char = two_chars << 8; 
                 uint32_t xor_chars =  (two_chars ^ shifted_two_char) & 0x0000FF00;        
                 uint32_t error_local = __vcmpeq4(xor_chars, 0x00000600);
-                shared_error |= (~error_local) > 0; 
+                atomicOr(&shared_error, (uint32_t)((~error_local) > 0));
+                // shared_error |= (~error_local) > 0; 
                 endIdx[index_arr[k]] = index_arr[k+1] + lastStructuralIndex + 1;
             }else if(k+3 >= oc_cnt){ 
-                shared_error |= 1; 
+                atomicOr(&shared_error, 1u);
+                // shared_error |= 1; 
             }else{
                 uint32_t four_chars = pair_oc[k] | pair_oc[k+1] << 8 | pair_oc[k+2] << 16 | pair_oc[k+3] << 24;
                 uint32_t shifted_four_chars = four_chars << 8;
                 uint32_t xor_chars =  (four_chars ^ shifted_four_chars) & 0xFF00FF00;        
                 uint32_t error_local = __vcmpeq4(xor_chars, 0x06000600) & 0xFFFFFFFF;
-                shared_error |= (~error_local) > 0; 
+                atomicOr(&shared_error, (uint32_t)((~error_local) > 0));
+                // shared_error |= (~error_local) > 0; 
 
                 endIdx[index_arr[k]] = index_arr[k+1] + lastStructuralIndex + 1;
                 endIdx[index_arr[k+2]] = index_arr[k+3] + lastStructuralIndex + 1;
@@ -1033,7 +1037,8 @@ void validate_expand(char* pair_oc, uint32_t* index_arr, uint32_t* endIdx, int o
             uint32_t xor_chars =  (four_chars ^ shifted_four_chars) & 0xFF00FF00;        
             uint32_t error_local = __vcmpeq4(xor_chars, 0x06000600) & 0xFFFFFFFF;
 
-            shared_error |= (~error_local | order_err) > 0; 
+            atomicOr(&shared_error, (uint32_t)((~error_local | order_err) > 0));
+            // shared_error |= (~error_local | order_err) > 0; 
             endIdx[index_arr[k]] = index_arr[k+1] + lastStructuralIndex + 1;
             endIdx[index_arr[k+2]] = index_arr[k+3] + lastStructuralIndex + 1;
         }

@@ -1488,7 +1488,8 @@ void validate_expand_MathAPI_new2(char* pair_oc, uint32_t* index_arr, uint32_t* 
             // printf("outside error: %c\n", structural_GPU[currentIndex]);
             if(k+1 >= oc_cnt){
                 // printf("here error1: %c\n", structural_GPU[currentIndex]);
-                shared_error |= 1; 
+                atomicOr(&shared_error, 1u);
+                // shared_error |= 1; 
             }else if(k+2 >= oc_cnt){
                 // printf("here error1: %c\n", pair_oc[k]);
                 // printf("here error2: %c\n", pair_oc[k+1]);
@@ -1500,14 +1501,15 @@ void validate_expand_MathAPI_new2(char* pair_oc, uint32_t* index_arr, uint32_t* 
                 // printf("xor: %x\n", xor_chars);
                 uint32_t error_local = __vcmpeq4(xor_chars, 0x00000600);
                 // printf("err: %x\n", error_local);
-                shared_error |= (~error_local) > 0; 
+                atomicOr(&shared_error, (uint32_t)((~error_local) > 0));
+                // shared_error |= (~error_local) > 0; 
 
                 endIdx[index_arr[k]] = index_arr[k+1] + lastStructuralIndex + 1;
 
             }else if(k+3 >= oc_cnt){
                 // printf("here error3: %c\n", structural_GPU[currentIndex]);
-                // atomicOr(&shared_error, 1); 
-                shared_error |= 1; 
+                atomicOr(&shared_error, 1u); 
+                // shared_error |= 1; 
             }else{
                 // printf("here error4: %c\n", structural_GPU[currentIndex]);
                 // int nextIndex = index_arr[k+1];
@@ -1518,7 +1520,8 @@ void validate_expand_MathAPI_new2(char* pair_oc, uint32_t* index_arr, uint32_t* 
                 uint32_t shifted_four_chars = four_chars << 8;
                 uint32_t xor_chars =  (four_chars ^ shifted_four_chars) & 0xFF00FF00;        
                 uint32_t error_local = __vcmpeq4(xor_chars, 0x06000600) & 0xFFFFFFFF;
-                shared_error |= (~error_local) > 0; 
+                atomicOr(&shared_error, (uint32_t)((~error_local) > 0));
+                // shared_error |= (~error_local) > 0; 
 
                 endIdx[index_arr[k]] = index_arr[k+1] + lastStructuralIndex + 1;
                 endIdx[index_arr[k+2]] = index_arr[k+3] + lastStructuralIndex + 1;
@@ -1539,7 +1542,7 @@ void validate_expand_MathAPI_new2(char* pair_oc, uint32_t* index_arr, uint32_t* 
             uint32_t xor_chars =  (four_chars ^ shifted_four_chars) & 0xFF00FF00;        
             uint32_t error_local = __vcmpeq4(xor_chars, 0x06000600) & 0xFFFFFFFF;
 
-            shared_error |= (~error_local | order_err) > 0; 
+            atomicOr(&shared_error, (uint32_t)((~error_local | order_err) > 0)); 
 
             // atomicOr(&shared_error, (~error_local | order_err) > 0); 
 
