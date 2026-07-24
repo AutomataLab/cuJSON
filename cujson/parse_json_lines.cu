@@ -905,9 +905,22 @@ inline uint8_t * stage2_tokenizer(  uint8_t* block_GPU,
 
     uint8_t* out_string_open_close_8_GPU;
     uint32_t* out_string_open_close_8_index_GPU; // it's going to store structural index, not real index
-    cudaMallocAsync(&out_string_open_close_8_GPU, (last_index_tokens_open_close + padding2)  * sizeof(uint8_t),0);
-    cudaMallocAsync(&out_string_open_close_8_index_GPU, last_index_tokens_open_close * sizeof(uint32_t),0);
+    // Fixed: Initialize it to 0 before using it in the kernel to avoid undefined behavior.
+    cudaMallocAsync(&out_string_open_close_8_GPU,
+                    (last_index_tokens_open_close + padding2) * sizeof(uint8_t),
+                    0);
+    cudaMemsetAsync(out_string_open_close_8_GPU,
+                    0,
+                    (last_index_tokens_open_close + padding2) * sizeof(uint8_t),
+                    0);
 
+    cudaMallocAsync(&out_string_open_close_8_index_GPU,
+                    last_index_tokens_open_close * sizeof(uint32_t),
+                    0);
+    cudaMemsetAsync(out_string_open_close_8_index_GPU,
+                    0,
+                    last_index_tokens_open_close * sizeof(uint32_t),
+                    0);
     // extractStructuralIdx(): extractStructuralIdx() + extractOpenCloseIdx()
     extractStructuralIdx<<<numBlock, BLOCKSIZE>>>(acc_structural_cnt,       // prefix sum set bits until each word of structural
                                         acc_open_close_cnt,                 // prefix sum set bits until each word of open close
@@ -1018,8 +1031,10 @@ int32_t* stage3_parser(uint8_t* open_close_bitmap, int32_t** open_close_index_d,
 
     // _______________STEP_1__(a)_________________    
     uint32_t* oc_1; // output 
-    cudaMallocAsync(&oc_1, oc_cnt_32*sizeof(uint32_t), 0); 
-    
+    // Fixed: Allocate memory for oc_1 and initialize it to zero
+    cudaMallocAsync(&oc_1, oc_cnt_32 * sizeof(uint32_t), 0);
+    cudaMemsetAsync(oc_1, 0, oc_cnt_32 * sizeof(uint32_t), 0);
+
     map_open_close<<<numBlock_open_close_32, BLOCKSIZE>>>( (uint32_t*) open_close_bitmap, oc_1, oc_cnt_32, oc_cnt);
     cudaStreamSynchronize(0);
 
