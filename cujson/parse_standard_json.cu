@@ -47,11 +47,6 @@ void vectorizedClassification(uint32_t block_compressed, uint32_t prev1, uint32_
                                                 // 11111___ 1000____
 
 
-    constexpr const uint8_t CARRY = TOO_SHORT | TOO_LONG | TWO_CONTS; 
-                                                // These all have ____ in byte 1 . 10000011
-
-
-    
     // SIMDJSON use table in CPU, but in GPU Table is very slow
     // we check 4 character in a single time by this:
     constexpr const uint32_t TOO_SHORT_32 = (
@@ -108,16 +103,6 @@ void vectorizedClassification(uint32_t block_compressed, uint32_t prev1, uint32_
         ((uint32_t)TOO_LARGE_1000) << 16 | 
         ((uint32_t)TOO_LARGE_1000) << 24
     );
-    constexpr const uint32_t CARRY_32 = (
-        ((uint32_t)CARRY)       | 
-        ((uint32_t)CARRY) << 8  | 
-        ((uint32_t)CARRY) << 16 |
-        ((uint32_t)CARRY) << 24
-    );
-    
-
-
-
     // [2_high,  ] [1_high ,1_low] <--
     // [a,b,c,d,e,f,g,h] --shr-->   [0,0,0,0,a,b,c,d]
     //                              [0,0,0,0,1,0,0,0] {08}
@@ -179,8 +164,6 @@ void continuationBytes(uint32_t prev2, uint32_t prev3, uint32_t sc, uint32_t& mu
         (0b11110000u-1) << 16 | 
         (0b11110000u-1) << 24;
 
-
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     // the latest byte in our UTF8Bytes (character) is third or fourth
     // subtract prev2 and prev3 from third_subtract_byte and fourth_subtract_byte
@@ -280,8 +263,6 @@ void checkUTF8(uint32_t* blockCompressed_GPU, uint32_t* error_GPU, uint64_t size
 
 inline bool UTF8Validation(uint32_t * block_GPU, uint64_t size){
     // _________________INIT_________________________
-    int total_padded_32 = size;
-
     uint32_t* general_ptr;
     cudaMallocAsync(&general_ptr, sizeof(uint32_t), 0);
     uint32_t* error_GPU = general_ptr;
@@ -1090,24 +1071,11 @@ inline uint8_t * Tokenize(  uint8_t* block_GPU,
     int WORDS = 2;
 
     int total_padded_8B         = (total_padded_32 + 1) / 2;
-    int total_padded_16B        = (total_padded_32 + 3) / 4;
-    int total_padded_32_div_8   = (total_padded_32 + 7) / 8;
-    int total_padded_32_div_32  = (total_padded_32 + 31) / 32;
-
     int total_padded_8 = (size + 7) / 8;
-    int total_padded_32B = (size + 7) / 8;
-    // int total_padded_32 = (size + 31) / 32; // most used
-    int total_padded_64 = (size + 63) / 64;
-
-    int smallNumBlock   = (total_padded_32_div_32 + BLOCKSIZE - 1) / BLOCKSIZE;
-    int smallNumBlock_8 = (total_padded_32_div_8 + BLOCKSIZE - 1) / BLOCKSIZE;
 
     int numBlock        = (total_padded_32 + BLOCKSIZE - 1) / BLOCKSIZE;
     int numBlock_8      = (total_padded_8 + BLOCKSIZE - 1) / BLOCKSIZE;
     int numBlock_8B     = (total_padded_8B + BLOCKSIZE - 1) / BLOCKSIZE;
-    int numBlock_16B    = (total_padded_16B + BLOCKSIZE - 1) / BLOCKSIZE;
-    int numBlock_32B    = (total_padded_32B + BLOCKSIZE - 1) / BLOCKSIZE;
-    int numBlock_64     = (total_padded_64 + BLOCKSIZE - 1) / BLOCKSIZE;
 
 
     // Prepare
@@ -1291,18 +1259,6 @@ inline uint8_t * Tokenize(  uint8_t* block_GPU,
     // std::cout << "Step 5c Time: " << milliseconds << " ms" << std::endl;
 
 
-    // Step 5d
-    // last_index_tokens += 3;
-    // last_index_tokens_open_close += 2;
-
-    int reminder = last_index_tokens % 4;    
-    int padding = (4-reminder) & 3; 
-    // It will always return a number between 0 and 3, 
-    // which represents the number of padding bytes needed to align the size to the next multiple of 4.
-    // uint64_t last_index_tokens_padded = (last_index_tokens + padding)/4;
-
-
-
     // uint8_t* out_string_8_GPU;
     uint32_t* out_string_8_index_GPU; // it's going to store real index.
     // cudaMallocAsync(&out_string_8_GPU, (last_index_tokens + padding) * sizeof(uint8_t),0);
@@ -1389,7 +1345,6 @@ void depth_init_MathAPI(uint32_t* open_close_GPU, uint32_t* oc_1, int oc_cnt_32,
     int stride = blockDim.x * gridDim.x;
 
     for(int32_t i = index; i < oc_cnt_32 && i < oc_cnt ; i+=stride){
-        uint32_t idx = i*4;
         uint32_t current_4_bytes = open_close_GPU[i];
 
         uint32_t isOpen = (__vcmpeq4(current_4_bytes, 0x5B5B5B5B) | __vcmpeq4(current_4_bytes, 0x7B7B7B7B) ) & 0x01010101; // 01
@@ -1560,19 +1515,9 @@ int32_t* Parser(uint8_t* open_close_GPU, int32_t** open_close_index_d,  int32_t*
     uint32_t* parsed_oc = reinterpret_cast<uint32_t*>(*real_input_index_d); // contains two rows--> 1. structural     2. pair_pos 
 
     
-    // _______________STEP_1__(a)_________________    
-    int numBlock = (structural_cnt + BLOCKSIZE - 1) / BLOCKSIZE;
-    int numBlock_open_close = (oc_cnt + BLOCKSIZE - 1) / BLOCKSIZE;
-
     int WORDS = 4;
-    int structural_cnt_32 = (structural_cnt + WORDS - 1) / WORDS;                   // for times that we are working on 4 bytes instead of 1 bytes in a thread
-    int numBlock_32 = (structural_cnt_32 + BLOCKSIZE - 1) / BLOCKSIZE;
-
     int oc_cnt_32 = (oc_cnt + WORDS - 1) / WORDS;
     int numBlock_open_close_32 = (oc_cnt_32 + BLOCKSIZE - 1) / BLOCKSIZE;
-
-
-    int32_t* res; // temporary result that will use in following
 
     uint32_t* oc_1; // output 
     cudaMallocAsync(&oc_1, oc_cnt_32*sizeof(uint32_t), 0); 
@@ -1635,12 +1580,9 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
     cuJSONResult parsed_tree;
     parsed_tree.chunkCount = 1;
     parsed_tree.totalResultSize = 0;
-    parsed_tree.resultSizes;
-    parsed_tree.resultSizesPrefix;
     parsed_tree.structural = NULL;
     parsed_tree.pair_pos = NULL;
 
-    int current_chunk_num = 0;
     int total_result_size = 0;          // latest index structural
 
 
@@ -1663,7 +1605,6 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
     uint64_t size_32 = padded_length / 4;
     
     uint8_t* open_close_GPU;
-    uint64_t * parse_tree; 
     
     // Host to Device Memory Copy - Allocate input memory on GPU
     uint8_t* d_jsonContent; // block_GPU
@@ -1691,7 +1632,6 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
 
     // Structure Recognition
     int32_t* result_GPU;
-    int32_t* result;
     int result_size;
     result_GPU = Parser(open_close_GPU, 
                         (int32_t **)(&open_close_index_GPU), 
@@ -1700,10 +1640,6 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
                         last_index_tokens, 
                         result_size,
                         lastStructuralIndex);
-
-
-
-    uint32_t total_tokens = (uint32_t) last_index_tokens;
 
     // output_size = (uint32_t) result_size * ROW2;
     cudaFree(d_jsonContent); // Free the input memory on GPU

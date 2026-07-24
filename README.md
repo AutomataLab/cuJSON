@@ -61,9 +61,10 @@ Two sample datasets are included in the `dataset` folder. Large datasets (used i
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See [deployment](#deployment) for notes on how to deploy the project on a live system.
 
 ### Prerequisites
-- `g++` (version 7 or better), 
-- `Cuda` compilation tools (release 12.1), 
-- and a 64-bit system with a command-line shell (e.g., Linux, macOS, FreeBSD). 
+- `g++` (version 7 or newer),
+- the CUDA toolkit (release 12.1 or newer; also validated with CUDA 13.3),
+- an NVIDIA GPU with compute capability 8.0 for the commands below, and
+- a 64-bit Linux system with a command-line shell.
 
 ### Building and Running the Examples (Standard JSON)
 Follow these steps to compile and run the cuJSON examples:
@@ -76,13 +77,13 @@ cd cuJSON
 ```
 
 2. Compile `main.cu` (Standard JSON Parsing), <b>check [notes](#notes) for more details</b>:
-```
-nvcc -O3 main.cu -o cujson_standard.out -w -gencode=arch=compute_61,code=sm_61
+```bash
+nvcc -O3 -std=c++17 -arch=sm_80 main.cu -o cujson_standard.out
 ```
 
 3. Run (Standard JSON Parsing):
 Once cujson_standard.out is compiled, you can execute it. We've included example JSON files in the dataset/ folder for your convenience, <b>check [notes](#notes) for more details about what datasets should you use</b>.
-```
+```bash
 ./cujson_standard.out ./dataset/twitter_sample_large_record.json
 ```
 
@@ -97,35 +98,37 @@ git clone https://github.com/ashkanvg/cuJSON
 cd cuJSON
 ```
 
-2. We have provided multiple files for differenet APIs. We will explore more about the difference of them in the next section. 
+2. Three entry points demonstrate the available JSON Lines chunking APIs.
 
-Compile `main_jsonlines.cu` for Parsing JSON Lines by splitting the data into 4 chunks, <b>check [notes](#notes) for more details</b>:
-```
-nvcc -O3 main_jsonlines.cu -o cujson_jsonlines.out -w -gencode=arch=compute_61,code=sm_61
-```
-
-Or compile `main_jsonlines_chunksize_MB.cu` or `main_jsonlines_chunksize.cu` for Parsing JSON Lines by splitting the data into chunks with size of `256MB`:
-```
-nvcc -O3 main_jsonlines_chunksize_MB.cu -o cujson_jsonlines.out -w -gencode=arch=compute_61,code=sm_61
-```
-Or
-```
-nvcc -O3 main_jsonlines_chunksize.cu -o cujson_jsonlines.out -w -gencode=arch=compute_61,code=sm_61
+Compile `main_jsonlines.cu` to split the input into four chunks:
+```bash
+nvcc -O3 -std=c++17 -arch=sm_80 main_jsonlines.cu -o cujson_jsonlines_count.out
 ```
 
-3. Run (JSON Lines Parsing):
-Once `cujson_jsonlines.out` is compiled, you can execute it. We've included example JSON files in the `dataset/` folder for your convenience.
+Compile `main_jsonlines_chunksize.cu` to limit chunks to 256 MiB expressed in bytes:
+```bash
+nvcc -O3 -std=c++17 -arch=sm_80 main_jsonlines_chunksize.cu -o cujson_jsonlines_chunksize_bytes.out
 ```
-./cujson_jsonlines.out ./dataset/twitter_sample_small_records.json
+
+Compile `main_jsonlines_chunksize_MB.cu` to specify the same limit in megabytes:
+```bash
+nvcc -O3 -std=c++17 -arch=sm_80 main_jsonlines_chunksize_MB.cu -o cujson_jsonlines_chunksize_mb.out
+```
+
+3. Run the binary for the chunking API you want to test:
+```bash
+./cujson_jsonlines_count.out ./dataset/twitter_sample_small_records.json
+./cujson_jsonlines_chunksize_bytes.out ./dataset/twitter_sample_small_records.json
+./cujson_jsonlines_chunksize_mb.out ./dataset/twitter_sample_small_records.json
 ```
 
 
 ### Notes <a name="notes"></a>:
 1. You can use any valid standard JSON or JSON Lines file as input. For more extensive testing, refer to the [datasets](#datasets) section for information on using larger 1GB JSON datasets.
-2. [-gencode=arch=compute_61,code=sm_61]: (Optional) This flag is for specifying a target GPU architecture. You should replace 61 with the compute capability of your target GPU to achieve optimal performance. For example, for a Turing GPU (RTX 20 series), it might be `compute_75,code=sm_75`. If omitted, nvcc will try to detect your GPU or compile for a generic architecture, which might result in less optimal performance. [You can typically find your GPU's compute capability online here](https://developer.nvidia.com/cuda-gpus).
-3. -w: Suppresses all warnings (useful for cleaner output, but be cautious in development).
-4. -std=c++17: You can run the compilation using the C++17 standard, which is often required for modern CUDA code.
-5. Passes the -O3 optimization flag to the host C++ compiler, ensuring highly optimized CPU code.
+2. `-arch=sm_80` targets compute capability 8.0 GPUs such as the NVIDIA A100. Replace `sm_80` with the architecture of your GPU when building for another device. See NVIDIA's [CUDA GPU compute capability list](https://developer.nvidia.com/cuda-gpus).
+3. `-std=c++17` selects the C++17 language standard used by the examples.
+4. `-O3` enables optimized host and device compilation.
+5. The commands intentionally omit `-w` so compiler warnings remain visible during development.
 
 
 
@@ -154,31 +157,31 @@ In your source files where you intend to use cuJSON, include its primary header:
 
 
 3. Load Your JSON Data:
-Before parsing, your JSON data needs to be loaded into a `cuJSONInput` or `cuJSONLinesInput` structure. This structure is a simple container for your raw JSON byte buffer and its size. The `loadJSON` or `loadJSONLines` helper function (presumably provided within the cujson source) is designed for this.
+Before parsing, load the data into a `cuJSONInput` or `cuJSONLinesInput` structure with the API matching the input format and chunking strategy.
 - For Standard JSON:
-```
+```cpp
 std::string filePath = "./dataset/twitter_sample_large_record.json";
 cuJSONInput input = loadJSON(filePath);
 ```
 - For JSON Lines, there are multiple cases: 
 
 a. Split based on the number of chunks:
-```
-int chunk_counts = 4;
+```cpp
+size_t chunkCount = 4;
 std::string filePath = "./dataset/twitter_sample_small_records.json";
-cuJSONLinesInput input = loadJSONLines(filePath, chunk_counts);
+cuJSONLinesInput input = loadJSONLines_chunkCount(filePath, chunkCount);
 ```
 b. Split based on the maximum chunk size in bytes:
-```
-string filePath = "./dataset/twitter_sample_small_records.json";
-int maxChunkSize = 256 * 1024 * 1024; // 256MB
-cuJSONLinesInput input = loadJSONLines_chunkSizeBytes(filePath, maxChunkSize);
+```cpp
+std::string filePath = "./dataset/twitter_sample_small_records.json";
+size_t maxChunkSizeBytes = 256 * 1024 * 1024;
+cuJSONLinesInput input = loadJSONLines_chunkSizeBytes(filePath, maxChunkSizeBytes);
 ```
 c. Split based on the maximum chunk size in megabytes:
-```
-string filePath = "./dataset/twitter_sample_small_records.json";
-int maxChunkSize = 256; // 256MB
-cuJSONLinesInput input = loadJSONLines_chunkSizeMegaBytes(filePath, maxChunkSize);
+```cpp
+std::string filePath = "./dataset/twitter_sample_small_records.json";
+size_t maxChunkSizeMegaBytes = 256;
+cuJSONLinesInput input = loadJSONLines_chunkSizeMegaBytes(filePath, maxChunkSizeMegaBytes);
 ```
 
 4. Parse the JSON Data:
@@ -198,10 +201,10 @@ The `cuJSONResult` structure (described in detail later) contains pointers to pa
 ### Summary of the Load and Parse APIs
 | API Method                            | Description |
 | :-------------------------------------------- |:------------------------- |
-| `cuJSONInput loadJSON(const string& filePath)`       |  Loads a Standard JSON file into a `cuJSONInput` structure. |
-| `cuJSONLinesInput loadJSONLines_chunkCount(const string& filePath, size_t chunkCount)` | Loads a JSON Lines file and splits it into `chunkCount` chunks. |
-| `cuJSONLinesInput loadJSONLines_chunkSizeBytes(const string& filePath, size_t chunkSizeBytes)` | Loads a JSON Lines file and splits it into chunks based on a maximum chunk size (in bytes). |
-| `cuJSONLinesInput loadJSONLines_chunkSizeMegaBytes(const string& filePath, size_t chunkSizeMegaBytes)`| Loads a JSON Lines file and splits it into chunks based on a maximum chunk size (in megabytes). |
+| `cuJSONInput loadJSON(const std::string& filePath)`       |  Loads a Standard JSON file into a `cuJSONInput` structure. |
+| `cuJSONLinesInput loadJSONLines_chunkCount(const std::string& filePath, size_t chunkCount)` | Loads a JSON Lines file and splits it into `chunkCount` chunks. |
+| `cuJSONLinesInput loadJSONLines_chunkSizeBytes(const std::string& filePath, size_t chunkSizeBytes)` | Loads a JSON Lines file and splits it into chunks based on a maximum chunk size (in bytes). |
+| `cuJSONLinesInput loadJSONLines_chunkSizeMegaBytes(const std::string& filePath, size_t chunkSizeMegaBytes)`| Loads a JSON Lines file and splits it into chunks based on a maximum chunk size (in megabytes). |
 | `cuJSONResult parse_standard_json(cuJSONInput input)` | Parses a Standard JSON file after it has been loaded into a `cuJSONInput` structure. |
 | `cuJSONResult parse_json_lines(cuJSONLinesInput input)` | Parses a JSON Lines file after it has been loaded into a `cuJSONLinesInput` structure. |
 
@@ -234,14 +237,16 @@ This comprehensive structure encapsulates the output of the GPU-based JSON parsi
 
 ```
 struct cuJSONResult {
-    uint8_t* inputJSON;                     // A pointer to the original JSON data buffer.
-    int32_t* structural;                    // It containes the byte positions of all JSON structural characters 
-    int32_t* pair_pos;                      // It stores the closing structural character's index (in `structural`)
-                                            // for the opening structural character at `structural[i]`. 
-                                            // This enables efficient navigation of nesting.
-    int depth;                              // The maximum nesting depth encountered in the parsed JSON file.
-    int totalResultSize;                    // The total size of the combined parsed output.
-    int fileSize;                           // The size of the original input JSON file in bytes.
+    uint8_t* inputJSON;                     // Raw JSON pointer metadata
+    int chunkCount;                         // Number of parsed chunks
+    int bufferSize;                         // Parser/iterator buffer metadata
+    std::vector<int> resultSizes;           // Structural result size for each chunk
+    std::vector<int> resultSizesPrefix;     // Prefix sums of per-chunk result sizes
+    int32_t* structural;                    // Byte positions of JSON structural characters
+    int32_t* pair_pos;                      // Matching closing index for each opening structure
+    int depth;                              // Maximum nesting-depth metadata
+    int totalResultSize;                    // Combined structural output size
+    int fileSize;                           // Structural result span, including boundary entries
 };
 ```
 
@@ -250,42 +255,54 @@ struct cuJSONResult {
 
 ## 🗂️ Query Iterator <a name="query"></a>
 
-After cuJSON has efficiently parsed your JSON data into the `cuJSONResult` structure on the GPU, the next step is to actually access and extract the values you need. The `cuJSONIterator` is designed precisely for this, allowing you to traverse the parsed JSON array with exceptional speed. Thanks to the pre-calculated `pair_pos` and `structural` array within `cuJSONResult`, the iterator can cleverly skip over entire nested child structures, jumping directly to siblings or specific keys/indices, significantly accelerating data retrieval.
+After parsing, use `cuJSONIterator` for Standard JSON or `cuJSONLinesIterator` for JSON Lines. Both iterators use the precomputed `pair_pos` and `structural` arrays to skip nested structures and navigate to keys or array elements efficiently.
 
 
 ### Core APIs
-The cuJSONIterator provides a set of intuitive APIs for navigating the parsed JSON array.
+The iterator classes share the core navigation methods, with two additional helpers available only for JSON Lines.
 
 1. Initialize the Iterator:
-First, create an instance of the cuJSONIterator, linking it to your `parsed_array` (the output from `parse_standard_json` or `parse_json_lines`) and the original file path.
+Create the iterator matching the parser result and pass the original file path as a C string.
 
-
-```
-// Assuming 'parsed_array' is your cuJSONResult and 'filePath' is a const char* to the original file path
-cuJSONIterator itr = cuJSONIterator(&parsed_array, filePath);
+```cpp
+cuJSONIterator standardIterator(&parsed_array, filePath.c_str());
+cuJSONLinesIterator linesIterator(&parsed_array, filePath.c_str());
 ```
 
 2. Traverse and Extract Data: Once initialized, you can use the iterator's methods to move through the JSON structure and retrieve information.
 
+| API Method | Availability | Description |
+| :--- | :--- | :--- |
+| `int gotoKey(std::string key)` | Both | Moves to the value associated with `key` in the current object. |
+| `int gotoArrayIndex(int index)` | Both | Moves to an element in the current array. |
+| `int increamentIndex(int index)` | Both | Advances by `index` positions in the structural array. This spelling is part of the current public API. |
+| `int gotoNextSibling(int index)` | JSON Lines | Moves to another element in the current array. |
+| `bool checkKeyValue(std::string key, std::string value)` | JSON Lines | Tests whether the current object contains the key-value pair. |
+| `std::string getKey()` | Both | Returns the key at the current iterator position. |
+| `std::string getValue()` | Both | Returns the value at the current iterator position. |
+| `void reset()` | Both | Resets the iterator to the first structural entry. |
+| `void freeJson()` | Both | Releases the iterator and parsed-result allocations. |
 
-| API Method                            | Description |
-| :-------------------------------------------- |:------------------------- |
-| `int gotoKey(string key)`       | Attempts to move the iterator's position to the value associated with the specified `key` within the current JSON object. Returns `structural` index on success.
-| `int gotoArrayIndex(int index)` | Attempts to move the iterator's position to the element at the specified `index` within the current JSON array. Returns `structural` index on success.|
-| `int incrementIndex(int index)` | Advances the iterator's current position forward by `index` steps along the `structural` array. This is useful for sequential traversal within structural array. Returns `structural` index on success. |
-| `int gotoNextSibling(int index)` | Advances the iterator's current position forward by `index` steps along the `structural` array. This is useful for sequential traversal within **only** JSON arrays. Returns `structural` index on success. |
-| `bool checkKeyValue(string key, string value)` | check if the current object has the key-value pair. Returns `true` on success and `false` on failure. |
-| `string getKey()`               | When positioned at a key-value pair within a JSON object, this returns the `string` representation of the current key.|
-| `string getValue()`             | When positioned at a value, this returns its `string` representation. |
-| `void reset()`                  | Resets the iterator's internal pointer back to the very first structural character of the parsed JSON array, allowing you to re-traverse from the beginning.|
-
-
-The primary distinction when querying JSON Lines compared to standard JSON lies in the initial step: for Standard JSON, you are required to call gotoArrayIndex(0) at the beginning of your traversal. After this initial call, you can proceed with the same querying steps as you would for a JSON Lines document.
-
-
-3. Third, make sure to call `freeJSON()` at the end, to free the allocated memory of the input and parsed array.
+For the bundled Standard JSON sample, enter the synthetic root and then the first array element before selecting `lang`:
+```cpp
+standardIterator.gotoArrayIndex(0);
+standardIterator.gotoArrayIndex(0);
+standardIterator.gotoKey("lang");
+std::string value = standardIterator.getValue();
 ```
-freeJson();                            
+
+For the bundled JSON Lines sample, select the first record and then its top-level `lang` field:
+```cpp
+linesIterator.gotoArrayIndex(0);
+linesIterator.gotoKey("lang");
+std::string value = linesIterator.getValue();
+```
+
+3. Call `freeJson()` on the iterator when processing is complete:
+```cpp
+standardIterator.freeJson();
+// or
+linesIterator.freeJson();
 ```
 
 ### Examples

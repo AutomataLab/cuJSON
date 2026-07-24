@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
     // //TT1
     itr.gotoArrayIndex(0);
     itr.gotoKey("lang");
-    std::cout << "\033[1;32m[RESULT]\033[0m Query Value of $[0].user.lang: " << itr.getValue() << "\n";
+    std::cout << "\033[1;32m[RESULT]\033[0m Query Value of $[0].lang: " << itr.getValue() << "\n";
 
     itr.freeJson();
 

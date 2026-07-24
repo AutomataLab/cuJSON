@@ -196,7 +196,7 @@ int cuJSONIterator::jumpValueForward(int pos){
 
 char cuJSONIterator::getArtificalChar(int idx){
     if(idx == totalResultSize - 1) return ']';
-    else return NULL;
+    else return '\0';
 }
 
 int cuJSONIterator::jumpForwardStructural(int idx){
@@ -349,7 +349,6 @@ int cuJSONIterator::increamentIndex(int index){
 }
 
 string cuJSONIterator::getString(int startPos, int endPos){ // it will use for getKeys and end string is always comma
-    int i = 0;
     int length = 0;
     string result;
 
@@ -474,10 +473,8 @@ string cuJSONIterator::getKey(){
 }
 
 string cuJSONIterator::getValue(){
-    int startPos = structural[node] - 1;
     char currentNodeChar = getChar(node);
     string value;
-    primitive_type type;
     if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':'){
         int startIdx = node + 1;            // maybe its array
         int startPos, endIdx, endPos;
@@ -520,7 +517,8 @@ string cuJSONIterator::getValue(){
             return value;
         }
     }else{
-        cout << 'ERROR: iterator is in wrong place.' <<endl;
+        cout << "ERROR: iterator is in wrong place." <<endl;
+        return value;
     }
 
     // string value;
