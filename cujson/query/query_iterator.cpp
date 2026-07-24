@@ -176,7 +176,7 @@ int cuJSONLinesIterator::jumpValueForward(int pos){
 
 char cuJSONLinesIterator::getArtificalChar(int idx){
     if(idx == totalResultSize - 1) return ']';
-    else return NULL;
+    else return '\0';
 }
 
 int cuJSONLinesIterator::jumpForwardStructural(int idx){
@@ -433,7 +433,6 @@ int cuJSONLinesIterator::increamentIndex(int index){
 }
 
 string cuJSONLinesIterator::getString(int startPos, int endPos){ // it will use for getKeys and end string is always comma
-    int i = 0;
     int length = 0;
     string result;
 
@@ -512,11 +511,8 @@ string cuJSONLinesIterator::getKey(){
 
 string cuJSONLinesIterator::getValue(){
     // cout << "getValue called for node: " << node << endl;
-    int startPos = structural[node] - 1;
-    // cout << "startPos: " << startPos << endl;
     char currentNodeChar = getChar(node);
     string value;
-    primitive_type type;
     if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':'){
         int startIdx = node + 1;            // maybe its array
         int startPos, endIdx, endPos;
@@ -559,7 +555,8 @@ string cuJSONLinesIterator::getValue(){
             return value;
         }
     }else{
-        cout << 'ERROR: iterator is in wrong place.' <<endl;
+        cout << "ERROR: iterator is in wrong place." <<endl;
+        return value;
     }
 
     // string value;

@@ -156,7 +156,6 @@ cuJSONLinesInput loadJSONLines_chunkSizeBytes(const std::string& filePath, size_
     for (size_t i = 1; i < line_offsets.size(); ++i) {
         size_t line_start = line_offsets[i - 1];
         size_t line_end = line_offsets[i];
-        size_t line_len = line_end - line_start;
 
         // If adding this line would exceed the chunk size, finalize current chunk
         if ((line_end - current_chunk_start) > chunkSizeBytes) {
@@ -231,7 +230,6 @@ cuJSONLinesInput loadJSONLines_chunkSizeMegaBytes(const std::string& filePath, s
     for (size_t i = 1; i < line_offsets.size(); ++i) {
         size_t line_start = line_offsets[i - 1];
         size_t line_end = line_offsets[i];
-        size_t line_len = line_end - line_start;
 
         // If adding this line would exceed the chunk size, finalize current chunk
         if ((line_end - current_chunk_start) > chunkSizeBytes) {

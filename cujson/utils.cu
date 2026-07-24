@@ -20,6 +20,8 @@
 #include <thrust/partition.h>
 #include <thrust/execution_policy.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
+#include <thrust/tuple.h>
 #include <inttypes.h>
 #include <thrust/host_vector.h>
 #include <device_launch_parameters.h>
