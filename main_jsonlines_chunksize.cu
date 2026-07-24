@@ -30,12 +30,23 @@ int main(int argc, char **argv) {
 
 
     // Parse JSON with cuJSON
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
     cuJSONResult parsed_tree = parse_json_lines(input);
     if(parsed_tree.structural == nullptr) {
         std::cout << "\033[1;31m[ERR]\033[0m JSON parsing failed.\n";
         cudaFreeHost(input.data);
         return EXIT_FAILURE;
     }
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+    float gpu_time_ms;
+    cudaEventElapsedTime(&gpu_time_ms, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    std::cout << "\033[1;32m[RESULT]\033[0m GPU parsing time: " << gpu_time_ms << " ms\n";
 
 
 
