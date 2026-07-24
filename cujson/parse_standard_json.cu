@@ -1276,6 +1276,9 @@ inline uint8_t * Tokenize(  uint8_t* block_GPU,
     uint8_t* out_string_open_close_8_GPU;
     uint32_t* out_string_open_close_8_index_GPU; // it's going to store structural index, not real index
     cudaMallocAsync(&out_string_open_close_8_GPU, (last_index_tokens_open_close + padding2)  * sizeof(uint8_t),0);
+    if (padding2 != 0) {
+        cudaMemsetAsync(out_string_open_close_8_GPU + last_index_tokens_open_close, 0, padding2, 0);
+    }
     cudaMallocAsync(&out_string_open_close_8_index_GPU, last_index_tokens_open_close * sizeof(uint32_t),0);
 
     // cout << "res size before remove copy: " << last_index_tokens_open_close << "\n";
@@ -1668,6 +1671,8 @@ cuJSONResult parse_standard_json(cuJSONInput input) {
     // parsed tree struct generation
     parsed_tree.totalResultSize = total_result_size + 2;
     parsed_tree.fileSize = result_size + 2;
+    res_buff[0] = 0;
+    res_buff[result_size + 1] = parsed_tree.totalResultSize - 1;
     
     // parsed_tree.structural = res_buf_arrays[0];
     // parsed_tree.pair_pos = res_buf_arrays[0] + total_result_size + 1;
