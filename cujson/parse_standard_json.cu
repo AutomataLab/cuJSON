@@ -1264,6 +1264,9 @@ inline uint8_t * Tokenize(  uint8_t* block_GPU,
     // cudaMallocAsync(&out_string_8_GPU, (last_index_tokens + padding) * sizeof(uint8_t),0);
 
     cudaMallocAsync(&out_string_8_index_GPU, last_index_tokens * sizeof(uint32_t) * ROW2,0); // Row 1 for structural index, Row 2 for ending pos which will calculated in parsr
+    // Row 2 (pair_pos) is only written for opening brackets, but the whole row is
+    // copied back to the host, so zero it first. Row 1 is fully written by removeCopy.
+    cudaMemsetAsync(out_string_8_index_GPU + last_index_tokens, 0, last_index_tokens * sizeof(uint32_t), 0);
 
     int reminder2 = last_index_tokens_open_close % 4;    
     int padding2 = (4-reminder2) & 3; 

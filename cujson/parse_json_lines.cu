@@ -895,6 +895,9 @@ inline uint8_t * stage2_tokenizer(  uint8_t* block_GPU,
 
     uint32_t* out_string_8_index_GPU; // it's going to store real index.
     cudaMallocAsync(&out_string_8_index_GPU, last_index_tokens * sizeof(uint32_t) * ROW2,0); // Row 1 for structural index, Row 2 for ending pos which will calculated in parsr
+    // Row 2 (pair_pos) is only written for opening brackets, but the whole row is
+    // copied back to the host, so zero it first. Row 1 is fully written by extractStructuralIdx.
+    cudaMemsetAsync(out_string_8_index_GPU + last_index_tokens, 0, last_index_tokens * sizeof(uint32_t), 0);
     int reminder2 = last_index_tokens_open_close % 4;    
     int padding2 = (4-reminder2) & 3; 
     // It will always return a number between 0 and 3, 
@@ -906,6 +909,9 @@ inline uint8_t * stage2_tokenizer(  uint8_t* block_GPU,
     uint8_t* out_string_open_close_8_GPU;
     uint32_t* out_string_open_close_8_index_GPU; // it's going to store structural index, not real index
     cudaMallocAsync(&out_string_open_close_8_GPU, (last_index_tokens_open_close + padding2)  * sizeof(uint8_t),0);
+    if (padding2 != 0) {
+        cudaMemsetAsync(out_string_open_close_8_GPU + last_index_tokens_open_close, 0, padding2, 0);
+    }
     cudaMallocAsync(&out_string_open_close_8_index_GPU, last_index_tokens_open_close * sizeof(uint32_t),0);
 
     // extractStructuralIdx(): extractStructuralIdx() + extractOpenCloseIdx()
@@ -1069,7 +1075,10 @@ int32_t* stage3_parser(uint8_t* open_close_bitmap, int32_t** open_close_index_d,
 
 int32_t *mergeChunks(int32_t* res_buf_arrays[], cuJSONResult* resultStruct, int chunkCounts){
     int32_t* resultBuffer; // cpu
-    cudaMallocHost(&resultBuffer, sizeof(uint32_t)*(resultStruct->resultSizesPrefix[chunkCounts - 1])*ROW2 + 3);   
+    // The `+ 3` belongs inside the element count: the merge writes through element
+    // 2N+1, which needs (2N+2) int32s. The old form allocated 8N+3 bytes and
+    // overran the buffer by 5 bytes on every non-empty merge.
+    cudaMallocHost(&resultBuffer, sizeof(uint32_t)*((size_t)(resultStruct->resultSizesPrefix[chunkCounts - 1])*ROW2 + 3));   
     // cout size of the resultBuffer
     // cout << "resultBuffer size: " << resultStruct->resultSizesPrefix[chunkCounts - 1]<< endl;
 
