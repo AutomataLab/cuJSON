@@ -126,14 +126,37 @@ void cuJSONLinesIterator::freeJson(){
 }
 
 char cuJSONLinesIterator::getChar(int idx){
-    if( inputJSON[structural[idx] - 1] == '\n' ) return ',';
+    // Fixed: Check if idx is within bounds and structural/inputJSON are not NULL
+    // Also, make sure pos is within the bounds of the inputJSON array
+    if(idx < 0 || idx >= totalResultSize || structural == NULL || inputJSON == NULL){
+        return '\0';
+    }
     else if (idx == totalResultSize - 1) return ']';
     else if (idx == 0) return '[';
-    else return inputJSON[structural[idx] - 1];
+
+    int pos = structural[idx] - 1;
+    if(pos < 0 || pos >= fileSize){
+        return '\0';
+    }
+    else if(inputJSON[pos] == '\n'){
+        return ',';
+    }
+    else return inputJSON[pos];
 }
 
 int cuJSONLinesIterator::jumpOpeningForward(int idx){
-    return pair_pos[idx];
+    // Fixed: Check if idx is within bounds and pair_pos is not NULL
+    if(idx < 0 || idx >= totalResultSize || pair_pos == NULL){
+        return -1;
+    }
+
+    int pairNode = pair_pos[idx];
+    // Fixed: Check if pairNode is within bounds
+    if(pairNode < 0 || pairNode >= totalResultSize){
+        return -1;
+    }
+
+    return pairNode;
 }
 
 int cuJSONLinesIterator::jumpSpacesForward(int pos){
@@ -231,33 +254,94 @@ void cuJSONLinesIterator::reset(){
 }
 
 int cuJSONLinesIterator::gotoArrayIndex(int index){
+    // Fixed: Check if index is valid and structural/inputJSON are not NULL
+    if(index < 0){
+        return 0;
+    }
+
+    if(totalResultSize <= 0 || structural == NULL || pair_pos == NULL || inputJSON == NULL){
+        return 0;
+    }
+
+    if(node < 0 || node >= totalResultSize){
+        return 0;
+    }
+
     int total = index + 1;                                // total number of index that we have to go forward to get the requested index [started from 0]
                                                           // +1 is for handling indexes [1,2,3,...], user will use [0,1,2,...]
-    
-    char currentNodeChar = getChar(node);
-    // cout << "currNodeChar: " << currentNodeChar <<endl; 
-    if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':') increamentIndex(1);
-    // next node
-    int nextNode = node+1;         
-    char nextNodeChar = getChar(nextNode);
+    int startNode = node;
+    int nextNode;
+    int newCurrArrayNode = currArrayNode;
 
+    char currentNodeChar = getChar(startNode);
+    // Fixed: Check if currentNodeChar is valid
+    if(currentNodeChar == '\0'){
+        return 0;
+    }
+
+    /*
+     * Do not call increamentIndex(1) here because it mutates iterator state
+     * before we know whether the requested array index is valid.
+     */
+    if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':'){
+        // Fixed: Check if startNode + 1 is within bounds
+        if(startNode + 1 >= totalResultSize){
+            return 0;
+        }
+
+        startNode++;
+        currentNodeChar = getChar(startNode);
+        // Fixed: Check if currentNodeChar is valid
+        if(currentNodeChar == '\0'){
+            return 0;
+        }
+    }
+
+    // next node
+    nextNode = startNode + 1;
+    // Fixed: Check if nextNode is within bounds
+    if(nextNode < 0 || nextNode >= totalResultSize){
+        return 0;
+    }
+    char nextNodeChar = getChar(nextNode);
+    // Fixed: Check if nextNodeChar is valid
+    if(nextNodeChar == '\0'){
+        return 0;
+    }
     // cout << "nextNodeChar: " << nextNodeChar <<endl; 
 
     // total != 1 because we consider '[' as node to first index in array
-    while( total != 1 && nextNodeChar != ']' && nextNode != totalResultSize - 1){   
+    while( total != 1 && nextNodeChar != ']' && nextNode != totalResultSize - 1){ 
+        // Fixed: Check if nextNode is within bounds  
+        if(nextNode < 0 || nextNode >= totalResultSize){
+            return 0;
+        }
         // cout << "nxt->" << nextNodeChar <<endl;     
         if(nextNodeChar == '[' || nextNodeChar == '{'){
             // cout << "nextNodeChar: " << nextNodeChar << endl;
-            nextNode = jumpOpeningForward(nextNode);
+            int pairNode = jumpOpeningForward(nextNode);
+            // Fixed: Check if pairNode is within bounds
+            if(pairNode <= nextNode || pairNode >= totalResultSize){
+                return 0;
+            }
 
+            nextNode = pairNode;
         }
         if(nextNodeChar == ',' || nextNodeChar == '\n' || nextNodeChar == ' '){ // no need for \n
-            currArrayNode = nextNode; // save the current array node
+            newCurrArrayNode  = nextNode; // save the current array node
             total--; // go one node forward
         }
 
         nextNode++;
+        // Fixed: Check if nextNode is within bounds
+        if(nextNode < 0 || nextNode >= totalResultSize){
+            return 0;
+        }
         nextNodeChar = getChar(nextNode);
+        // Fixed: Check if nextNodeChar is valid
+        if(nextNodeChar == '\0'){
+            return 0;
+        }
     }
    
     // cout << "total: " << total << endl;
@@ -269,7 +353,20 @@ int cuJSONLinesIterator::gotoArrayIndex(int index){
     // that means we achieve to requested index
     if(total == 1){
         // cout << "curr node in total == 1 --> " << getChar(nextNode) <<endl;
-        node = nextNode-1; // change the node pointer iterator to the nextNode pointer
+        int targetNode = nextNode - 1;
+        // Fixed: Check if targetNode is within bounds
+        if(targetNode < 0 || targetNode >= totalResultSize){
+            return 0;
+        }
+        /*
+         * Reject empty-array access, for example gotoArrayIndex(0) on [].
+         */
+        if(nextNodeChar == ']' && targetNode == startNode){
+            return 0;
+        }
+        node = targetNode; // change the node pointer iterator to the nextNode pointer
+        currArrayNode = newCurrArrayNode;
+
         // cout << "node - 2: " << node << endl;
         // currentNodeChar = getChar(node);
         // cout << "currentNodeChar-2: " << currentNodeChar <<endl;

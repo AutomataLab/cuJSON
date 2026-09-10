@@ -163,15 +163,33 @@ void structural_iterator::freeJson(){
 }
 
 char structural_iterator::getChar(int idx){
-    if( inputJSON[structural[idx] - 1] == '\n' ) return ',';
+    if(idx < 0 || idx >= totalResultSize || structural == NULL || inputJSON == NULL){
+        return '\0';
+    }
     else if (idx == totalResultSize - 1) return ']';
     else if (idx == 0) return '[';
-    else return inputJSON[structural[idx] - 1];
+
+    int pos = structural[idx] - 1;
+    if(pos < 0 || pos >= fileSize){
+        return '\0';
+    }
+
+    else if(inputJSON[pos] == '\n'){
+        return ',';
+    }
+    else return inputJSON[pos];
 }
 
 int structural_iterator::jumpOpeningForward(int idx){
-    return pair_pos[idx];
-}
+    if(idx < 0 || idx >= totalResultSize || pair_pos == NULL){
+        return -1;
+    }
+    int pairNode = pair_pos[idx];
+    if(pairNode < 0 || pairNode >= totalResultSize){
+        return -1;
+    }
+
+    return pairNode;}
 
 int structural_iterator::jumpSpacesForward(int pos){
     int current_pos = pos;
@@ -267,37 +285,99 @@ void structural_iterator::reset(){
 }
 
 int structural_iterator::gotoArrayIndex(int index){
+    if(index < 0){
+        return 0;
+    }
+
+    if(totalResultSize <= 0 || structural == NULL || pair_pos == NULL || inputJSON == NULL){
+        return 0;
+    }
+
+    if(node < 0 || node >= totalResultSize){
+        return 0;
+    }
+
     int total = index + 1;                                // total number of index that we have to go forward to get the requested index [started from 0]
                                                           // +1 is for handling indexes [1,2,3,...], user will use [0,1,2,...]
-    
-    char currentNodeChar = getChar(node);
+    int startNode = node;
+    int nextNode;
+
+    char currentNodeChar = getChar(startNode);
+    if(currentNodeChar == '\0'){
+        return 0;
+    }
     // cout << "currNodeChar: " << currentNodeChar <<endl; 
-    if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':') increamentIndex(1);
+    /*
+     * Do not call increamentIndex(1) here because it mutates iterator state
+     * before we know whether the requested array index is valid.
+     */
+    if(currentNodeChar == ',' || currentNodeChar == '\n' || currentNodeChar == ':'){
+        if(startNode + 1 >= totalResultSize){
+            return 0;
+        }
+
+        startNode++;
+        currentNodeChar = getChar(startNode);
+        if(currentNodeChar == '\0'){
+            return 0;
+        }
+    }
     // next node
-    int nextNode = node+1;         
+    nextNode = startNode + 1;
+    if(nextNode < 0 || nextNode >= totalResultSize){
+        return 0;
+    }
+
     char nextNodeChar = getChar(nextNode);
+    if(nextNodeChar == '\0'){
+        return 0;
+    }
 
     // cout << "nextNodeChar: " << nextNodeChar <<endl; 
 
     // total != 1 because we consider '[' as node to first index in array
     while( total != 1 && nextNodeChar != ']' && nextNode != totalResultSize - 1){   
-        // cout << "nxt->" << nextNodeChar <<endl;     
+        // cout << "nxt->" << nextNodeChar <<endl; 
+        if(nextNode < 0 || nextNode >= totalResultSize){
+            return 0;
+        }
+
         if(nextNodeChar == '[' || nextNodeChar == '{'){
-            // cout << "nextNodeChar: " << nextNodeChar << endl;
-            nextNode = jumpOpeningForward(nextNode);
+            int pairNode = jumpOpeningForward(nextNode);
+            if(pairNode <= nextNode || pairNode >= totalResultSize){
+                return 0;
+            }
+
+            nextNode = pairNode;
         }
         if(nextNodeChar == ',' || nextNodeChar == '\n'){ // no need for \n
             total--; // go one node forward
         }
 
         nextNode++;
+        if(nextNode < 0 || nextNode >= totalResultSize){
+            return 0;
+        }
         nextNodeChar = getChar(nextNode);
+            if(nextNodeChar == '\0'){
+            return 0;
+        }
     }
     
     // that means we achieve to requested index
     if(total == 1){
+        int targetNode = nextNode - 1;
+        if(targetNode < 0 || targetNode >= totalResultSize){
+            return 0;
+        }
+        /*
+         * Reject empty-array access, for example gotoArrayIndex(0) on [].
+         */
+        if(nextNodeChar == ']' && targetNode == startNode){
+            return 0;
+        }
         // cout << "curr node in total == 1 --> " << getChar(nextNode) <<endl;
-        node = nextNode-1; // change the node pointer iterator to the nextNode pointer
+        node = targetNode; // change the node pointer iterator to the nextNode pointer
 
         if(nextNodeChar == '{'){
             nodeType = OBJECT;
