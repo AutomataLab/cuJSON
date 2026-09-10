@@ -135,7 +135,9 @@ char cuJSONLinesIterator::getChar(int idx){
     else if (idx == 0) return '[';
 
     int pos = structural[idx] - 1;
-    if(pos < 0 || pos >= fileSize){
+    // `fileSize` counts structural tokens, not bytes; `len` is the real JSON
+    // buffer length and is the correct bound for indexing `inputJSON`.
+    if(pos < 0 || (size_t)pos >= len){
         return '\0';
     }
     else if(inputJSON[pos] == '\n'){
